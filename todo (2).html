@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f8f7f4">
+<title>Todo リスト</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --bg: #f8f7f4; --surface: #ffffff;
+  --border: rgba(0,0,0,0.1); --border-hover: rgba(0,0,0,0.2);
+  --text: #1a1a1a; --muted: #888; --hint: #bbb;
+  --p-high: #e24b4a; --p-mid: #ef9f27; --p-low: #639922;
+}
+html, body { height: 100%; }
+body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+#app { max-width: 480px; margin: 0 auto; padding: 0 0 120px; }
+header { padding: 52px 20px 16px; background: var(--bg); position: sticky; top: 0; z-index: 10; }
+h1 { font-size: 26px; font-weight: 500; letter-spacing: -0.5px; }
+.date { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.stats { display: flex; gap: 16px; margin-top: 12px; }
+.stat { font-size: 12px; color: var(--muted); }
+.stat strong { color: var(--text); font-weight: 500; }
+.filters { display: flex; gap: 6px; margin-top: 12px; overflow-x: auto; scrollbar-width: none; }
+.filters::-webkit-scrollbar { display: none; }
+.filter-btn { padding: 5px 14px; font-size: 12px; font-family: 'Noto Sans JP', sans-serif; border: 1px solid var(--border); border-radius: 99px; background: transparent; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.filter-btn.active { background: var(--text); border-color: var(--text); color: #fff; }
+.list { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.todo-item { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; animation: slideIn 0.2s ease; }
+.todo-item.done { opacity: 0.45; }
+@keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+.item-top { display: flex; align-items: center; gap: 10px; }
+.check-btn { width: 22px; height: 22px; min-width: 22px; border: 2px solid var(--border-hover); border-radius: 50%; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.check-btn.checked { background: var(--text); border-color: var(--text); }
+.check-icon { display: none; }
+.check-btn.checked .check-icon { display: block; }
+.prio-dot { width: 7px; height: 7px; min-width: 7px; border-radius: 50%; }
+.p-high { background: var(--p-high); } .p-mid { background: var(--p-mid); } .p-low { background: var(--p-low); }
+.todo-text { flex: 1; font-size: 15px; line-height: 1.4; color: var(--text); word-break: break-all; }
+.todo-item.done .todo-text { text-decoration: line-through; color: var(--hint); }
+.del-btn { width: 28px; height: 28px; border: none; background: transparent; color: var(--hint); font-size: 18px; cursor: pointer; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.attachments { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.attach-item { display: flex; align-items: center; gap: 8px; background: #f4f3f0; border-radius: 8px; padding: 8px 10px; }
+.attach-icon { font-size: 18px; min-width: 20px; }
+.attach-name { flex: 1; font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.attach-size { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.attach-open { font-size: 12px; color: #185fa5; background: none; border: none; cursor: pointer; padding: 0 4px; font-family: 'Noto Sans JP', sans-serif; white-space: nowrap; }
+.attach-del { font-size: 16px; color: var(--hint); background: none; border: none; cursor: pointer; padding: 0 2px; }
+.add-attach-btn { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--muted); background: none; border: 1px dashed var(--border-hover); border-radius: 8px; padding: 7px 12px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; width: 100%; }
+.empty { text-align: center; padding: 60px 20px; color: var(--hint); font-size: 14px; }
+.input-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(248,247,244,0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 10px 16px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); }
+.input-row { display: flex; gap: 7px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 7px 8px 7px 14px; }
+.input-row input { flex: 1; border: none; background: transparent; font-size: 14px; font-family: 'Noto Sans JP', sans-serif; color: var(--text); outline: none; min-width: 0; }
+.input-row input::placeholder { color: var(--hint); }
+.prio-toggle { width: 26px; height: 26px; min-width: 26px; border-radius: 50%; border: 2px solid var(--border); cursor: pointer; }
+.mic-btn { width: 34px; height: 34px; min-width: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 17px; transition: all 0.15s; }
+.mic-btn.listening { background: #fff0f0; border-color: var(--p-high); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{transform:scale(1);}50%{transform:scale(1.08);} }
+.mic-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.add-btn { width: 34px; height: 34px; min-width: 34px; border-radius: 10px; border: none; background: var(--text); color: #fff; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.voice-banner { display: none; text-align: center; font-size: 12px; color: var(--p-high); margin-top: 6px; height: 16px; }
+.voice-banner.show { display: block; }
+.storage-warn { font-size: 11px; color: var(--p-high); padding: 4px 16px 0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Todo リスト</h1>
+    <p class="date" id="date-label"></p>
+    <div class="stats">
+      <span class="stat">残り <strong id="active-count">0</strong> 件</span>
+      <span class="stat">完了 <strong id="done-count">0</strong> 件</span>
+    </div>
+    <div class="filters">
+      <button class="filter-btn active" data-f="all">すべて</button>
+      <button class="filter-btn" data-f="active">未完了</button>
+      <button class="filter-btn" data-f="done">完了</button>
+      <button class="filter-btn" data-f="high">🔴 高</button>
+      <button class="filter-btn" data-f="mid">🟡 中</button>
+      <button class="filter-btn" data-f="low">🟢 低</button>
+    </div>
+  </header>
+  <p class="storage-warn" id="storage-warn"></p>
+  <div class="list" id="list"></div>
+</div>
+
+<div class="input-bar">
+  <div class="input-row">
+    <input type="text" id="new-task" placeholder="タスクを入力 or 🎤 音声入力" maxlength="100" />
+    <button class="prio-toggle" id="prio-toggle"></button>
+    <button class="mic-btn" id="mic-btn">🎤</button>
+    <button class="add-btn" id="add-btn">+</button>
+  </div>
+  <div class="voice-banner" id="voice-banner">🎤 話しかけてください...</div>
+</div>
+
+<input type="file" id="file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg" style="display:none" />
+
+<script>
+const STORAGE_KEY = 'todo_v3';
+let todos=[], filter='all', prio='mid', currentAttachId=null;
+const prioColors={high:'#e24b4a',mid:'#ef9f27',low:'#639922'};
+const prioOrder=['low','mid','high'];
+
+function fileIcon(n){const e=(n.split('.').pop()||'').toLowerCase();if(e==='pdf')return'📄';if(['doc','docx'].includes(e))return'📝';if(['xls','xlsx'].includes(e))return'📊';if(['png','jpg','jpeg','gif','webp'].includes(e))return'🖼';return'📎';}
+function fmtSize(b){if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';return(b/1048576).toFixed(1)+'MB';}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function loadTodos(){try{const r=localStorage.getItem(STORAGE_KEY);if(r)todos=JSON.parse(r);}catch(e){todos=[];}}
+function saveTodos(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(todos));checkStorage();}catch(e){document.getElementById('storage-warn').textContent='⚠ ストレージ容量が不足しています。';}}
+function checkStorage(){try{const u=new Blob([JSON.stringify(todos)]).size;document.getElementById('storage-warn').textContent=u>3145728?'⚠ 容量が残り少なくなっています（'+fmtSize(u)+'使用中）':'';}catch(e){}}
+
+function setDate(){const d=new Date(),w=['日','月','火','水','木','金','土'];document.getElementById('date-label').textContent=`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${w[d.getDay()]}）`;}
+
+function render(){
+  const filtered=todos.filter(t=>{
+    if(filter==='done')return t.done;if(filter==='active')return!t.done;
+    if(['high','mid','low'].includes(filter))return t.prio===filter;return true;
+  });
+  const list=document.getElementById('list');
+  if(!filtered.length){list.innerHTML='<div class="empty">タスクがありません</div>';return;}
+  list.innerHTML=filtered.map(t=>{
+    const ah=(t.attachments||[]).map((a,i)=>`
+      <div class="attach-item">
+        <span class="attach-icon">${fileIcon(a.name)}</span>
+        <span class="attach-name">${esc(a.name)}</span>
+        <span class="attach-size">${fmtSize(a.size)}</span>
+        <button class="attach-open" onclick="openFile('${t.id}',${i})">開く</button>
+        <button class="attach-del" onclick="delFile('${t.id}',${i})">×</button>
+      </div>`).join('');
+    return`<div class="todo-item${t.done?' done':''}" data-id="${t.id}">
+      <div class="item-top">
+        <button class="check-btn${t.done?' checked':''}" onclick="toggle('${t.id}')">
+          <svg class="check-icon" width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4L4.2 7.5L10 1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="prio-dot p-${t.prio}"></div>
+        <span class="todo-text">${esc(t.text)}</span>
+        <button class="del-btn" onclick="del('${t.id}')">×</button>
+      </div>
+      ${ah?`<div class="attachments">${ah}</div>`:''}
+      <button class="add-attach-btn" onclick="startAttach('${t.id}')"><span style="font-size:14px">📎</span> ファイルを添付</button>
+    </div>`;
+  }).join('');
+  document.getElementById('active-count').textContent=todos.filter(t=>!t.done).length;
+  document.getElementById('done-count').textContent=todos.filter(t=>t.done).length;
+}
+
+function toggle(id){const t=todos.find(t=>t.id===id);if(t){t.done=!t.done;saveTodos();render();}}
+function del(id){todos=todos.filter(t=>t.id!==id);saveTodos();render();}
+function startAttach(id){currentAttachId=id;document.getElementById('file-input').click();}
+function openFile(id,i){const t=todos.find(t=>t.id===id);if(!t||!t.attachments[i])return;const a=t.attachments[i],l=document.createElement('a');l.href=a.data;l.download=a.name;l.click();}
+function delFile(id,i){const t=todos.find(t=>t.id===id);if(!t)return;t.attachments.splice(i,1);saveTodos();render();}
+
+document.getElementById('file-input').addEventListener('change',function(){
+  const f=this.files[0];if(!f||!currentAttachId)return;
+  if(f.size>5242880){alert('ファイルサイズは5MB以下にしてください');this.value='';return;}
+  const r=new FileReader();
+  r.onload=e=>{const t=todos.find(t=>t.id===currentAttachId);if(!t)return;if(!t.attachments)t.attachments=[];t.attachments.push({name:f.name,size:f.size,data:e.target.result});saveTodos();render();};
+  r.readAsDataURL(f);this.value='';
+});
+
+function addTask(text){
+  const inp=document.getElementById('new-task');
+  const v=(text!==undefined?text:inp.value).trim();if(!v)return;
+  todos.unshift({id:Date.now().toString(36),text:v,done:false,prio,attachments:[]});
+  inp.value='';inp.focus();saveTodos();render();
+}
+
+document.getElementById('add-btn').addEventListener('click',()=>addTask());
+document.getElementById('new-task').addEventListener('keydown',e=>{if(e.key==='Enter')addTask();});
+
+const pt=document.getElementById('prio-toggle');
+pt.style.background=prioColors[prio];
+pt.addEventListener('click',()=>{prio=prioOrder[(prioOrder.indexOf(prio)+1)%3];pt.style.background=prioColors[prio];});
+
+document.querySelectorAll('.filter-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{filter=btn.dataset.f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');render();});
+});
+
+/* 音声入力 */
+const micBtn=document.getElementById('mic-btn');
+const voiceBanner=document.getElementById('voice-banner');
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+
+if(!SR){
+  micBtn.disabled=true;
+  micBtn.title='このブラウザは音声入力に対応していません';
+} else {
+  const recog=new SR();
+  recog.lang='ja-JP';
+  recog.interimResults=true;
+  recog.maxAlternatives=1;
+  let listening=false;
+
+  recog.onstart=()=>{
+    listening=true;
+    micBtn.classList.add('listening');
+    voiceBanner.classList.add('show');
+    document.getElementById('new-task').placeholder='話しかけてください...';
+  };
+  recog.onresult=e=>{
+    const t=Array.from(e.results).map(r=>r[0].transcript).join('');
+    document.getElementById('new-task').value=t;
+    if(e.results[e.results.length-1].isFinal){addTask(t);}
+  };
+  recog.onerror=e=>{
+    if(e.error==='not-allowed')alert('マイクの使用を許可してください。\nChromeのアドレスバー左のアイコンから許可できます。');
+    stop();
+  };
+  recog.onend=()=>stop();
+
+  function stop(){listening=false;micBtn.classList.remove('listening');voiceBanner.classList.remove('show');document.getElementById('new-task').placeholder='タスクを入力 or 🎤 音声入力';}
+
+  micBtn.addEventListener('click',()=>{listening?recog.stop():recog.start();});
+}
+
+setDate();loadTodos();render();
+</script>
+</body>
+</html>
