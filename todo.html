@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f8f7f4">
+<title>カレンダー Todo</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --bg: #f8f7f4; --surface: #fff;
+  --border: rgba(0,0,0,0.09); --border2: rgba(0,0,0,0.18);
+  --text: #1a1a1a; --muted: #888; --hint: #bbb;
+  --dot-high: #e24b4a; --dot-mid: #ef9f27; --dot-low: #639922;
+}
+html,body { height:100%; font-family:'Noto Sans JP',sans-serif; background:var(--bg); color:var(--text); }
+.cal-header { display:flex; align-items:center; justify-content:space-between; padding:52px 20px 12px; background:var(--bg); position:sticky; top:0; z-index:20; }
+.cal-header h1 { font-size:22px; font-weight:500; }
+.nav-btn { width:36px; height:36px; border:1px solid var(--border2); border-radius:10px; background:var(--surface); font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.weekdays { display:grid; grid-template-columns:repeat(7,1fr); padding:0 12px; }
+.wd { text-align:center; font-size:11px; color:var(--muted); padding:4px 0; }
+.wd:first-child { color:#e24b4a; }
+.wd:last-child { color:#185fa5; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; padding:4px 12px 20px; }
+.cal-cell { min-height:68px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:5px 5px 4px; cursor:pointer; position:relative; }
+.cal-cell:active { background:#f0efec; }
+.cal-cell.other-month { opacity:0.3; }
+.cal-cell.today .day-num { background:var(--text); color:#fff; border-radius:50%; }
+.cal-cell.selected { border-color:var(--text); border-width:1.5px; }
+.day-num { font-size:12px; font-weight:500; width:22px; height:22px; display:flex; align-items:center; justify-content:center; }
+.sun .day-num { color:#e24b4a; }
+.sat .day-num { color:#185fa5; }
+.cal-cell.today.sun .day-num, .cal-cell.today.sat .day-num { color:#fff; }
+.dots { display:flex; flex-wrap:wrap; gap:2px; margin-top:3px; }
+.dot { width:5px; height:5px; border-radius:50%; }
+.dot.high{background:var(--dot-high);}.dot.mid{background:var(--dot-mid);}.dot.low{background:var(--dot-low);}.dot.done{background:var(--hint);}
+.task-preview { font-size:9px; color:var(--muted); line-height:1.3; margin-top:2px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.panel-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:30; }
+.panel-overlay.show { display:block; }
+.panel { position:fixed; bottom:0; left:0; right:0; max-height:78vh; background:var(--bg); border-radius:20px 20px 0 0; z-index:31; display:flex; flex-direction:column; transform:translateY(100%); transition:transform 0.28s cubic-bezier(.4,0,.2,1); }
+.panel.show { transform:translateY(0); }
+.panel-handle { width:36px; height:4px; background:var(--hint); border-radius:2px; margin:10px auto 0; }
+.panel-head { display:flex; align-items:center; justify-content:space-between; padding:12px 20px 8px; }
+.panel-head h2 { font-size:17px; font-weight:500; }
+.panel-close { font-size:22px; color:var(--muted); background:none; border:none; cursor:pointer; }
+.panel-body { flex:1; overflow-y:auto; padding:0 16px 20px; }
+.task-list { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+.task-item { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:10px 12px; }
+.task-item.done { opacity:0.45; }
+.task-top { display:flex; align-items:center; gap:10px; }
+.check-btn { width:20px; height:20px; min-width:20px; border:2px solid var(--border2); border-radius:50%; background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.check-btn.checked { background:var(--text); border-color:var(--text); }
+.chk-icon { display:none; }
+.check-btn.checked .chk-icon { display:block; }
+.prio-dot { width:6px; height:6px; min-width:6px; border-radius:50%; }
+.p-high{background:var(--dot-high);}.p-mid{background:var(--dot-mid);}.p-low{background:var(--dot-low);}
+.task-text { flex:1; font-size:14px; line-height:1.4; word-break:break-all; }
+.task-item.done .task-text { text-decoration:line-through; color:var(--hint); }
+.task-del { width:26px; height:26px; border:none; background:transparent; color:var(--hint); font-size:17px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.attachments { margin-top:8px; display:flex; flex-direction:column; gap:5px; }
+.attach-item { display:flex; align-items:center; gap:7px; background:#f4f3f0; border-radius:7px; padding:6px 9px; }
+.attach-icon { font-size:16px; min-width:18px; }
+.attach-name { flex:1; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.attach-size { font-size:10px; color:var(--muted); white-space:nowrap; }
+.attach-open { font-size:11px; color:#185fa5; background:none; border:none; cursor:pointer; font-family:'Noto Sans JP',sans-serif; }
+.attach-del { font-size:15px; color:var(--hint); background:none; border:none; cursor:pointer; }
+.add-attach-btn { display:flex; align-items:center; gap:5px; margin-top:7px; font-size:11px; color:var(--muted); background:none; border:1px dashed var(--border2); border-radius:7px; padding:6px 10px; cursor:pointer; font-family:'Noto Sans JP',sans-serif; width:100%; }
+.empty-day { text-align:center; padding:24px; color:var(--hint); font-size:13px; }
+.panel-input { display:flex; gap:7px; align-items:center; background:var(--surface); border:1px solid var(--border2); border-radius:12px; padding:7px 8px 7px 12px; margin-bottom:4px; }
+.panel-input input { flex:1; border:none; background:transparent; font-size:14px; font-family:'Noto Sans JP',sans-serif; color:var(--text); outline:none; min-width:0; }
+.panel-input input::placeholder { color:var(--hint); }
+.prio-toggle { width:24px; height:24px; min-width:24px; border-radius:50%; border:2px solid var(--border); cursor:pointer; }
+.mic-btn { width:32px; height:32px; min-width:32px; border-radius:9px; border:1px solid var(--border2); background:var(--surface); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:15px; }
+.mic-btn.listening { background:#fff0f0; border-color:var(--dot-high); animation:pulse 1s infinite; }
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
+.mic-btn:disabled{opacity:0.3;cursor:not-allowed;}
+.add-btn { width:32px; height:32px; min-width:32px; border-radius:9px; border:none; background:var(--text); color:#fff; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.voice-hint { font-size:11px; color:var(--dot-high); height:14px; margin-bottom:8px; }
+</style>
+</head>
+<body>
+<div class="cal-header">
+  <button class="nav-btn" id="prev-btn">&#8249;</button>
+  <h1 id="month-label"></h1>
+  <button class="nav-btn" id="next-btn">&#8250;</button>
+</div>
+<div class="weekdays">
+  <div class="wd">日</div><div class="wd">月</div><div class="wd">火</div>
+  <div class="wd">水</div><div class="wd">木</div><div class="wd">金</div><div class="wd">土</div>
+</div>
+<div class="cal-grid" id="cal-grid"></div>
+<div class="panel-overlay" id="overlay"></div>
+<div class="panel" id="panel">
+  <div class="panel-handle"></div>
+  <div class="panel-head">
+    <h2 id="panel-title"></h2>
+    <button class="panel-close" id="panel-close">&#215;</button>
+  </div>
+  <div class="panel-body">
+    <div class="panel-input">
+      <input type="text" id="new-task" placeholder="タスクを入力 or 🎤" maxlength="100" />
+      <button class="prio-toggle" id="prio-toggle"></button>
+      <button class="mic-btn" id="mic-btn">🎤</button>
+      <button class="add-btn" id="add-btn">+</button>
+    </div>
+    <div class="voice-hint" id="voice-hint"></div>
+    <div class="task-list" id="task-list"></div>
+  </div>
+</div>
+<input type="file" id="file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg" style="display:none" />
+<script>
+const SK='cal_todo_v1';
+let data={},curYear,curMonth,selDate=null,prio='mid',attachKey=null,attachIdx=null;
+const pc={high:'#e24b4a',mid:'#ef9f27',low:'#639922'};
+const po=['low','mid','high'];
+function fmt(y,m,d){return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
+function todayStr(){const d=new Date();return fmt(d.getFullYear(),d.getMonth()+1,d.getDate());}
+function fi(n){const e=(n.split('.').pop()||'').toLowerCase();if(e==='pdf')return'📄';if(['doc','docx'].includes(e))return'📝';if(['xls','xlsx'].includes(e))return'📊';if(['png','jpg','jpeg','gif','webp'].includes(e))return'🖼';return'📎';}
+function fs(b){if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';return(b/1048576).toFixed(1)+'MB';}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function load(){try{const r=localStorage.getItem(SK);if(r)data=JSON.parse(r);}catch(e){data={};}}
+function save(){try{localStorage.setItem(SK,JSON.stringify(data));}catch(e){alert('ストレージ容量が不足しています。');}}
+
+function renderCal(){
+  document.getElementById('month-label').textContent=curYear+'年'+curMonth+'月';
+  const grid=document.getElementById('cal-grid');
+  const first=new Date(curYear,curMonth-1,1).getDay();
+  const days=new Date(curYear,curMonth,0).getDate();
+  const prevDays=new Date(curYear,curMonth-1,0).getDate();
+  const today=todayStr();
+  let html='';
+  for(let i=0;i<first;i++){
+    const d=prevDays-first+1+i;
+    const y=curMonth===1?curYear-1:curYear,m=curMonth===1?12:curMonth-1;
+    html+=cell(d,fmt(y,m,d),true,today,i);
+  }
+  for(let d=1;d<=days;d++){
+    const dow=(first+d-1)%7;
+    html+=cell(d,fmt(curYear,curMonth,d),false,today,dow);
+  }
+  const rem=(first+days)%7;
+  if(rem>0){for(let d=1;d<=7-rem;d++){const y=curMonth===12?curYear+1:curYear,m=curMonth===12?1:curMonth+1;html+=cell(d,fmt(y,m,d),true,today,(rem+d-1)%7);}}
+  grid.innerHTML=html;
+  grid.querySelectorAll('.cal-cell').forEach(c=>c.addEventListener('click',()=>openPanel(c.dataset.key)));
+}
+
+function cell(d,key,other,today,dow){
+  const tasks=data[key]||[];
+  let cls='cal-cell';
+  if(other)cls+=' other-month';
+  if(key===today)cls+=' today';
+  if(key===selDate)cls+=' selected';
+  if(dow===0)cls+=' sun';if(dow===6)cls+=' sat';
+  const dots=tasks.slice(0,6).map(t=>'<div class="dot '+(t.done?'done':t.prio)+'"></div>').join('');
+  const preview=tasks.length?'<div class="task-preview">'+esc(tasks[0].text)+'</div>':'';
+  return '<div class="'+cls+'" data-key="'+key+'"><div class="day-num">'+d+'</div><div class="dots">'+dots+'</div>'+preview+'</div>';
+}
+
+function openPanel(key){
+  selDate=key;
+  const p=key.split('-').map(Number);
+  const w=['日','月','火','水','木','金','土'];
+  document.getElementById('panel-title').textContent=p[1]+'月'+p[2]+'日（'+w[new Date(p[0],p[1]-1,p[2]).getDay()]+'）';
+  renderPanel();
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('panel').classList.add('show');
+  renderCal();
+}
+
+function closePanel(){
+  selDate=null;
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('panel').classList.remove('show');
+  renderCal();
+}
+
+function renderPanel(){
+  if(!selDate)return;
+  const tasks=data[selDate]||[];
+  const list=document.getElementById('task-list');
+  if(!tasks.length){list.innerHTML='<div class="empty-day">タスクがありません<br>下の入力欄から追加できます</div>';return;}
+  list.innerHTML=tasks.map((t,i)=>{
+    const ah=(t.attachments||[]).map((a,j)=>'<div class="attach-item"><span class="attach-icon">'+fi(a.name)+'</span><span class="attach-name">'+esc(a.name)+'</span><span class="attach-size">'+fs(a.size)+'</span><button class="attach-open" onclick="openFile(\''+selDate+'\','+i+','+j+')">開く</button><button class="attach-del" onclick="delFile(\''+selDate+'\','+i+','+j+')">&#215;</button></div>').join('');
+    return '<div class="task-item'+(t.done?' done':'')+'"><div class="task-top"><button class="check-btn'+(t.done?' checked':'')+'" onclick="toggleTask(\''+selDate+'\','+i+')"><svg class="chk-icon" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 3.5L3.8 7L9 1" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="prio-dot p-'+t.prio+'"></div><span class="task-text">'+esc(t.text)+'</span><button class="task-del" onclick="delTask(\''+selDate+'\','+i+')">&#215;</button></div>'+(ah?'<div class="attachments">'+ah+'</div>':'')+'<button class="add-attach-btn" onclick="startAttach(\''+selDate+'\','+i+')"><span style="font-size:13px">📎</span> ファイルを添付</button></div>';
+  }).join('');
+}
+
+function toggleTask(key,i){if(!data[key])return;data[key][i].done=!data[key][i].done;save();renderPanel();renderCal();}
+function delTask(key,i){if(!data[key])return;data[key].splice(i,1);if(!data[key].length)delete data[key];save();renderPanel();renderCal();}
+function startAttach(key,i){attachKey=key;attachIdx=i;document.getElementById('file-input').click();}
+function openFile(key,i,j){const a=data[key][i].attachments[j];const l=document.createElement('a');l.href=a.data;l.download=a.name;l.click();}
+function delFile(key,i,j){data[key][i].attachments.splice(j,1);save();renderPanel();}
+
+document.getElementById('file-input').addEventListener('change',function(){
+  const f=this.files[0];if(!f)return;
+  if(f.size>5242880){alert('5MB以下のファイルを選んでください');this.value='';return;}
+  const r=new FileReader();
+  r.onload=e=>{if(!data[attachKey]||!data[attachKey][attachIdx])return;if(!data[attachKey][attachIdx].attachments)data[attachKey][attachIdx].attachments=[];data[attachKey][attachIdx].attachments.push({name:f.name,size:f.size,data:e.target.result});save();renderPanel();};
+  r.readAsDataURL(f);this.value='';
+});
+
+function addTask(text){
+  if(!selDate)return;
+  const inp=document.getElementById('new-task');
+  const v=(text!==undefined?text:inp.value).trim();if(!v)return;
+  if(!data[selDate])data[selDate]=[];
+  data[selDate].push({id:Date.now().toString(36),text:v,done:false,prio,attachments:[]});
+  inp.value='';inp.focus();save();renderPanel();renderCal();
+}
+
+document.getElementById('add-btn').addEventListener('click',()=>addTask());
+document.getElementById('new-task').addEventListener('keydown',e=>{if(e.key==='Enter')addTask();});
+document.getElementById('prev-btn').addEventListener('click',()=>{curMonth--;if(curMonth<1){curMonth=12;curYear--;}renderCal();});
+document.getElementById('next-btn').addEventListener('click',()=>{curMonth++;if(curMonth>12){curMonth=1;curYear++;}renderCal();});
+document.getElementById('overlay').addEventListener('click',closePanel);
+document.getElementById('panel-close').addEventListener('click',closePanel);
+
+const pt=document.getElementById('prio-toggle');
+pt.style.background=pc[prio];
+pt.addEventListener('click',()=>{prio=po[(po.indexOf(prio)+1)%3];pt.style.background=pc[prio];});
+
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const micBtn=document.getElementById('mic-btn');
+const vhint=document.getElementById('voice-hint');
+if(!SR){micBtn.disabled=true;}
+else{
+  const recog=new SR();recog.lang='ja-JP';recog.interimResults=true;recog.maxAlternatives=1;
+  let ls=false;
+  recog.onstart=()=>{ls=true;micBtn.classList.add('listening');vhint.textContent='🎤 話しかけてください...';};
+  recog.onresult=e=>{const t=Array.from(e.results).map(r=>r[0].transcript).join('');document.getElementById('new-task').value=t;if(e.results[e.results.length-1].isFinal)addTask(t);};
+  recog.onerror=e=>{if(e.error==='not-allowed')alert('マイクの使用を許可してください。');stop();};
+  recog.onend=()=>stop();
+  function stop(){ls=false;micBtn.classList.remove('listening');vhint.textContent='';}
+  micBtn.addEventListener('click',()=>{ls?recog.stop():recog.start();});
+}
+
+const now=new Date();curYear=now.getFullYear();curMonth=now.getMonth()+1;
+load();renderCal();
+</script>
+</body>
+</html>
